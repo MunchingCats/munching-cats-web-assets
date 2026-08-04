@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Bast's Voxel Hide & Seek</title>
+    <title>Bast's Voxel Escape</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
-        body, html { width: 100%; height: 100%; overflow: hidden; background: #78a7ff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body, html { width: 100%; height: 100%; overflow: hidden; background: #6093e7; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         
         #viewport { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
         
@@ -16,7 +16,7 @@
             pointer-events: none; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.8);
             z-index: 10;
         }
-        .stat-card { background: rgba(16, 20, 30, 0.85); padding: 10px 16px; border-radius: 12px; border: 2px solid #ffcc00; }
+        .stat-card { background: rgba(14, 20, 32, 0.88); padding: 10px 16px; border-radius: 12px; border: 2px solid #ffd700; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
         .stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #ffd700; font-weight: bold; }
         
         .lives-container { display: flex; gap: 4px; margin-top: 4px; }
@@ -31,23 +31,23 @@
         /* Controls Legend Card */
         #controls-legend {
             position: absolute; bottom: 16px; left: 16px;
-            background: rgba(10, 14, 24, 0.88); padding: 12px 16px; border-radius: 10px;
-            border: 1px solid rgba(255,255,255,0.2); color: #eee; font-size: 12px; z-index: 10;
-            pointer-events: none; line-height: 1.6;
+            background: rgba(12, 18, 30, 0.9); padding: 12px 16px; border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.25); color: #eee; font-size: 12px; z-index: 10;
+            pointer-events: none; line-height: 1.6; box-shadow: 0 4px 12px rgba(0,0,0,0.4);
         }
-        .key-badge { background: #333; border: 1px solid #777; padding: 2px 6px; border-radius: 4px; font-weight: bold; color: #ffd700; }
+        .key-badge { background: #222; border: 1px solid #888; padding: 2px 6px; border-radius: 4px; font-weight: bold; color: #ffd700; }
 
         .overlay-screen {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(12, 18, 28, 0.92); display: flex; flex-direction: column;
+            background: rgba(10, 16, 26, 0.93); display: flex; flex-direction: column;
             justify-content: center; align-items: center; color: white; text-align: center;
             z-index: 20;
         }
         .btn {
-            margin-top: 22px; padding: 14px 36px; font-size: 18px; font-weight: bold;
+            margin-top: 22px; padding: 14px 38px; font-size: 18px; font-weight: bold;
             background: #ffd700; color: #111; border: none; border-radius: 8px;
             cursor: pointer; transition: transform 0.1s, background 0.2s;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            box-shadow: 0 4px 14px rgba(0,0,0,0.5);
         }
         .btn:active { transform: scale(0.95); }
 
@@ -84,7 +84,7 @@
 
     <div id="controls-legend">
         <div style="font-weight:bold; color:#ffd700; margin-bottom:4px;">CONTROLS LEGEND</div>
-        <div><span class="key-badge">W A S D</span> / <span class="key-badge">ARROWS</span> : Move Direct</div>
+        <div><span class="key-badge">W A S D</span> / <span class="key-badge">ARROWS</span> : Direct Move</div>
         <div><span class="key-badge">SPACE</span> : Drop Voxel Shield Block</div>
         <div><span class="key-badge">B</span> : Drop Shadow-Bomb</div>
     </div>
@@ -92,7 +92,7 @@
     <div id="start-screen" class="overlay-screen">
         <h1 style="color:#ffd700; font-size:32px; margin-bottom:10px;">Bast's Voxel Escape</h1>
         <p style="color:#ddd; max-width:380px; line-height:1.5; font-size:15px;">
-            Alastor is patrolling the village! Direct Bast safely through the cobblestone paths.<br><br>
+            Alastor is patrolling the village! Guide Bast safely through the cobblestone paths.<br><br>
             • <b>Shield:</b> Drop Voxel Blocks to intercept direct spore shots.<br>
             • <b>Counter:</b> Deflect shots into walls to charge your <b>Shadow-Bomb</b>.<br>
             • <b>Win:</b> Blast Alastor to secure victory!
@@ -154,18 +154,18 @@
         }
 
         const GRID = 11;
-        // 0: Cobblestone Path, 1: Oak/Cobble Village House Wall
+        // 0: Cobblestone Path, 1: Low Wall/Fence (0.35 height max), 2: Water, 3: Wheat Farm Patch
         const MAP = [
             [1,1,1,1,1,1,1,1,1,1,1],
-            [1,0,0,0,1,0,0,0,0,0,1],
+            [1,0,0,0,1,0,0,0,3,3,1],
             [1,0,1,0,1,0,1,1,1,0,1],
             [1,0,1,0,0,0,0,0,1,0,1],
-            [1,0,1,1,0,1,1,0,1,0,1],
-            [1,0,0,0,0,0,0,0,0,0,1],
-            [1,0,1,0,1,1,0,1,1,0,1],
+            [1,0,1,1,2,1,1,0,1,0,1],
+            [1,0,0,0,2,0,0,0,0,0,1],
+            [1,0,1,0,2,1,0,1,1,0,1],
             [1,0,1,0,0,0,0,0,1,0,1],
             [1,0,1,1,1,0,1,0,1,0,1],
-            [1,0,0,0,0,0,1,0,0,0,1],
+            [1,3,3,0,0,0,1,0,0,0,1],
             [1,1,1,1,1,1,1,1,1,1,1]
         ];
 
@@ -186,18 +186,20 @@
         function init3D() {
             const container = document.getElementById('viewport');
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x78a7ff); // Minecraft Sky Blue
+            scene.background = new THREE.Color(0x6093e7); // Minecraft Sky Blue
 
             const aspect = window.innerWidth / window.innerHeight;
-            const d = 5.2; // Zoomed in 2.5x closer
+            const d = 4.2; // Zoomed in close to character scale
             camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 1000);
-            camera.position.set(10, 12, 10);
+            
+            // Lower Camera Angle (35 degrees) looking forward at faces
+            camera.position.set(0, 5.5, 7.5);
             camera.lookAt(0, 0, 0);
 
-            const ambient = new THREE.AmbientLight(0xffffff, 0.75);
+            const ambient = new THREE.AmbientLight(0xffffff, 0.85);
             scene.add(ambient);
-            const dirLight = new THREE.DirectionalLight(0xfff5e6, 0.9);
-            dirLight.position.set(12, 20, 8);
+            const dirLight = new THREE.DirectionalLight(0xfff5e6, 0.95);
+            dirLight.position.set(8, 16, 12);
             dirLight.castShadow = true;
             dirLight.shadow.mapSize.width = 1024;
             dirLight.shadow.mapSize.height = 1024;
@@ -216,106 +218,115 @@
             if ('ontouchstart' in window) document.getElementById('touch-controls').style.display = 'flex';
         }
 
-        function createGrassCanvas() {
+        function createTextureCanvas(color, accent, type) {
             const canvas = document.createElement('canvas'); canvas.width = 64; canvas.height = 64;
             const ctx = canvas.getContext('2d');
-            ctx.fillStyle = '#5b8731'; ctx.fillRect(0,0,64,64);
-            ctx.fillStyle = '#4c7428';
-            for(let i=0; i<100; i++) ctx.fillRect(Math.random()*64, Math.random()*64, 4, 4);
-            return new THREE.CanvasTexture(canvas);
-        }
-
-        function createCobbleCanvas() {
-            const canvas = document.createElement('canvas'); canvas.width = 64; canvas.height = 64;
-            const ctx = canvas.getContext('2d');
-            ctx.fillStyle = '#7a7a7a'; ctx.fillRect(0,0,64,64);
-            ctx.fillStyle = '#555555';
-            for(let i=0; i<30; i++) ctx.fillRect(Math.random()*56, Math.random()*56, 12, 8);
+            ctx.fillStyle = color; ctx.fillRect(0,0,64,64);
+            ctx.fillStyle = accent;
+            if (type === 'noise') {
+                for(let i=0; i<80; i++) ctx.fillRect(Math.random()*64, Math.random()*64, 4, 4);
+            } else if (type === 'brick') {
+                for(let i=0; i<20; i++) ctx.fillRect(Math.random()*56, Math.random()*56, 14, 8);
+            }
             return new THREE.CanvasTexture(canvas);
         }
 
         function buildMinecraftEnvironment() {
-            const grassTex = createGrassCanvas();
-            const cobbleTex = createCobbleCanvas();
+            const grassTex = createTextureCanvas('#5b8731', '#4c7428', 'noise');
+            const cobbleTex = createTextureCanvas('#7a7a7a', '#555555', 'brick');
+            const woodTex = createTextureCanvas('#855d31', '#664320', 'noise');
+            const waterTex = createTextureCanvas('#3a7bd5', '#2b5ea8', 'noise');
+            const wheatTex = createTextureCanvas('#d4b244', '#b39228', 'noise');
 
-            const floorMat = new THREE.MeshStandardMaterial({ map: cobbleTex, roughness: 0.8 });
             const grassMat = new THREE.MeshStandardMaterial({ map: grassTex, roughness: 0.9 });
-            const woodMat = new THREE.MeshStandardMaterial({ color: 0x855d31, emissive: 0.6 });
+            const cobbleMat = new THREE.MeshStandardMaterial({ map: cobbleTex, roughness: 0.8 });
+            const woodMat = new THREE.MeshStandardMaterial({ map: woodTex, roughness: 0.7 });
+            const waterMat = new THREE.MeshStandardMaterial({ map: waterTex, roughness: 0.2 });
+            const wheatMat = new THREE.MeshStandardMaterial({ map: wheatTex, roughness: 0.9 });
 
             for (let x = -1; x <= GRID; x++) {
                 for (let z = -1; z <= GRID; z++) {
                     const posX = x - GRID/2 + 0.5;
                     const posZ = z - GRID/2 + 0.5;
 
+                    let mat = cobbleMat;
+                    if (x < 0 || x >= GRID || z < 0 || z >= GRID) mat = grassMat;
+                    else if (MAP[x][z] === 2) mat = waterMat;
+                    else if (MAP[x][z] === 3) mat = wheatMat;
+
                     // Ground Tile
-                    const tile = new THREE.Mesh(new THREE.BoxGeometry(0.98, 0.4, 0.98), (x < 0 || x >= GRID || z < 0 || z >= GRID) ? grassMat : floorMat);
+                    const tile = new THREE.Mesh(new THREE.BoxGeometry(0.98, 0.4, 0.98), mat);
                     tile.position.set(posX, -0.2, posZ);
                     tile.receiveShadow = true;
                     scene.add(tile);
 
-                    // Village Walls & Houses
+                    // LOW-PROFILE Village Walls (0.35 Height MAX so faces are ALWAYS visible)
                     if (x >= 0 && x < GRID && z >= 0 && z < GRID && MAP[x][z] === 1) {
-                        const wall = new THREE.Mesh(new THREE.BoxGeometry(0.98, 1.2, 0.98), woodMat);
-                        wall.position.set(posX, 0.6, posZ);
+                        const wall = new THREE.Mesh(new THREE.BoxGeometry(0.98, 0.35, 0.98), woodMat);
+                        wall.position.set(posX, 0.18, posZ);
                         wall.castShadow = true; wall.receiveShadow = true;
                         scene.add(wall);
+                    }
 
-                        // Roof cap
-                        const roof = new THREE.Mesh(new THREE.BoxGeometry(0.98, 0.3, 0.98), grassMat);
-                        roof.position.set(posX, 1.35, posZ);
-                        scene.add(roof);
+                    // Decorative Minecraft Oak Trees at corners
+                    if ((x === -1 && z === -1) || (x === GRID && z === -1) || (x === -1 && z === GRID) || (x === GRID && z === GRID)) {
+                        const trunk = new THREE.Mesh(new THREE.BoxGeometry(0.4, 1.2, 0.4), woodMat);
+                        trunk.position.set(posX, 0.6, posZ);
+                        const leaves = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.2, 1.2), grassMat);
+                        leaves.position.set(posX, 1.6, posZ);
+                        trunk.castShadow = true; leaves.castShadow = true;
+                        scene.add(trunk, leaves);
                     }
                 }
             }
         }
 
-        // --- Detailed Bast (Egyptian Crown, Collar, Fangs, Green Eyes) ---
+        // --- HIGH-FIDELITY BAST (2x Scaled, Forward Facing, Glowing Eyes, Gold Crown) ---
         function createBastMesh() {
             bastMesh = new THREE.Group();
-            const matBlack = new THREE.MeshStandardMaterial({ color: 0x0c0c0c, emissive: 0.3 });
+            const matBlack = new THREE.MeshStandardMaterial({ color: 0x0a0a0c, emissive: 0.2 });
             
-            // Body & Head
-            const body = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.35, 0.7, 10), matBlack); body.position.y = 0.35;
-            const head = new THREE.Mesh(new THREE.SphereGeometry(0.3, 10, 10), matBlack); head.position.y = 0.82;
+            // Scaled Up Body & Head
+            const body = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.4, 0.8, 12), matBlack); body.position.y = 0.4;
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.36, 12, 12), matBlack); head.position.y = 0.95;
             
             // Ears
-            const earL = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.25, 4), matBlack); earL.position.set(0.15, 1.1, 0); earL.rotation.z = -0.2;
-            const earR = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.25, 4), matBlack); earR.position.set(-0.15, 1.1, 0); earR.rotation.z = 0.2;
+            const earL = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.3, 4), matBlack); earL.position.set(0.18, 1.3, 0); earL.rotation.z = -0.2;
+            const earR = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.3, 4), matBlack); earR.position.set(-0.18, 1.3, 0); earR.rotation.z = 0.2;
 
             bastMesh.add(body, head, earL, earR);
 
-            // Big Green Eyes
-            const matGreen = new THREE.MeshBasicMaterial({ color: 0x44ff44 });
-            const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), matGreen); eyeL.position.set(0.12, 0.88, 0.24);
-            const eyeR = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), matGreen); eyeR.position.set(-0.12, 0.88, 0.24);
+            // Large Glowing Green Eyes
+            const matGreen = new THREE.MeshBasicMaterial({ color: 0x33ff33 });
+            const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), matGreen); eyeL.position.set(0.14, 1.02, 0.28);
+            const eyeR = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), matGreen); eyeR.position.set(-0.14, 1.02, 0.28);
             bastMesh.add(eyeL, eyeR);
 
             // Pink Mouth & Fangs
             const matPink = new THREE.MeshBasicMaterial({ color: 0xff3388 });
-            const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.04, 0.02), matPink); mouth.position.set(0, 0.75, 0.29);
+            const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.05, 0.03), matPink); mouth.position.set(0, 0.86, 0.34);
             bastMesh.add(mouth);
 
-            // Gold Egyptian Triple Crown
-            const matGold = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.9, emissive: 0.2 });
-            const spikeC = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.35, 4), matGold); spikeC.position.set(0, 1.25, 0);
-            const spikeL = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.28, 4), matGold); spikeL.position.set(0.08, 1.22, 0);
-            const spikeR = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.28, 4), matGold); spikeR.position.set(-0.08, 1.22, 0);
+            // Metallic Gold Egyptian Triple Crown & Collar
+            const matGold = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.9, emissive: 0.1 });
+            const spikeC = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.42, 4), matGold); spikeC.position.set(0, 1.5, 0);
+            const spikeL = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.32, 4), matGold); spikeL.position.set(0.1, 1.45, 0);
+            const spikeR = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.32, 4), matGold); spikeR.position.set(-0.1, 1.45, 0);
             
-            // Thick Gold Collar
-            const collar = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.08, 8, 16), matGold); collar.rotation.x = Math.PI/2; collar.position.y = 0.65;
+            const collar = new THREE.Mesh(new THREE.TorusGeometry(0.32, 0.09, 8, 16), matGold); collar.rotation.x = Math.PI/2; collar.position.y = 0.75;
             bastMesh.add(spikeC, spikeL, spikeR, collar);
 
             scene.add(bastMesh);
             updateMeshPos(bastMesh, bastPos, 0);
         }
 
-        // --- Detailed Alastor (Uniform + FA Tag + Mushroom Cap & Gills) ---
+        // --- HIGH-FIDELITY ALASTOR (Navy Uniform, FA Badge, Mushroom Gills) ---
         function createAlastorMesh() {
             alastorMesh = new THREE.Group();
             
-            // Dark Navy Uniform Shirt & Shorts
-            const matUniform = new THREE.MeshStandardMaterial({ color: 0x121b28, roughness: 0.5 });
-            const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.7, 0.42), matUniform); body.position.y = 0.35;
+            // Navy Uniform
+            const matUniform = new THREE.MeshStandardMaterial({ color: 0x101a28, roughness: 0.4 });
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.75, 0.48), matUniform); body.position.y = 0.4;
             alastorMesh.add(body);
 
             // White "FA" Chest Badge
@@ -324,21 +335,21 @@
             bCtx.fillStyle = '#ffffff'; bCtx.fillRect(0,0,32,32);
             bCtx.fillStyle = '#000000'; bCtx.font = 'bold 18px Arial'; bCtx.fillText('FA', 4, 22);
             const badgeTex = new THREE.CanvasTexture(badgeCanvas);
-            const badge = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 0.16), new THREE.MeshBasicMaterial({ map: badgeTex }));
-            badge.position.set(0.18, 0.5, 0.22);
+            const badge = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.2), new THREE.MeshBasicMaterial({ map: badgeTex }));
+            badge.position.set(0.2, 0.55, 0.25);
             alastorMesh.add(badge);
 
             // Neck Stalk
-            const matStalk = new THREE.MeshStandardMaterial({ color: 0xe0d5c1 });
-            const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 0.25, 10), matStalk); stalk.position.y = 0.75;
+            const matStalk = new THREE.MeshStandardMaterial({ color: 0xdfd4c0 });
+            const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.26, 0.28, 10), matStalk); stalk.position.y = 0.88;
             alastorMesh.add(stalk);
 
-            // Mushroom Cap (Brown Top + Gills Underneath)
+            // Mushroom Cap & Textured Gills
             const matCapTop = new THREE.MeshStandardMaterial({ color: 0x6e260e, emissive: 0.3 });
-            const capTop = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.3, 0.25, 16), matCapTop); capTop.position.y = 0.98;
+            const capTop = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 0.35, 0.28, 16), matCapTop); capTop.position.y = 1.12;
             
-            const matGills = new THREE.MeshStandardMaterial({ color: 0xc8b89e, emissive: 0.8 });
-            const capGills = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.8, 0.08, 16), matGills); capGills.position.y = 0.84;
+            const matGills = new THREE.MeshStandardMaterial({ color: 0xc4b49a, emissive: 0.8 });
+            const capGills = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.9, 0.09, 16), matGills); capGills.position.y = 0.98;
 
             alastorMesh.add(capTop, capGills);
 
@@ -368,11 +379,11 @@
                     const oldest = userBlocks.shift();
                     scene.remove(oldest.mesh);
                 }
-                const geo = new THREE.BoxGeometry(0.96, 0.9, 0.96);
-                const mat = new THREE.MeshStandardMaterial({ color: 0x5a9bc4, emissive: 0.3 });
+                const geo = new THREE.BoxGeometry(0.96, 0.85, 0.96);
+                const mat = new THREE.MeshStandardMaterial({ color: 0x4a8bb4, emissive: 0.3 });
                 const mesh = new THREE.Mesh(geo, mat);
                 mesh.castShadow = true; mesh.receiveShadow = true;
-                updateMeshPos(mesh, { x: bx, z: bz }, 0.45);
+                updateMeshPos(mesh, { x: bx, z: bz }, 0.42);
                 scene.add(mesh);
                 userBlocks.push({ x: bx, z: bz, mesh: mesh });
                 playSound('build');
@@ -388,7 +399,7 @@
                 bombCharge = 0;
                 updateChargeUI();
 
-                const geo = new THREE.SphereGeometry(0.4, 12, 12);
+                const geo = new THREE.SphereGeometry(0.42, 12, 12);
                 const mat = new THREE.MeshStandardMaterial({ color: 0xff0055, emissive: 0xaa0033 });
                 const mesh = new THREE.Mesh(geo, mat);
                 updateMeshPos(mesh, { x: bx, z: bz }, 0.45);
@@ -417,10 +428,10 @@
 
             blastArea.forEach(p => {
                 const flash = new THREE.Mesh(
-                    new THREE.BoxGeometry(0.96, 0.9, 0.96),
+                    new THREE.BoxGeometry(0.96, 0.85, 0.96),
                     new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0.85 })
                 );
-                updateMeshPos(flash, p, 0.45);
+                updateMeshPos(flash, p, 0.42);
                 scene.add(flash);
                 setTimeout(() => scene.remove(flash), 220);
 
@@ -434,15 +445,15 @@
             bombObj = null;
         }
 
-        // --- Alastor Patrol AI (Strict Grid Locked) ---
+        // --- Alastor Movement AI (Fixed Grid Lock) ---
         function updateAlastor() {
             aiMoveCooldown++;
-            if (aiMoveCooldown >= 22) {
+            if (aiMoveCooldown >= 20) {
                 aiMoveCooldown = 0;
                 
-                // Strict bounds checking: [1, GRID-2]
+                // Fixed direction filter (using d.z instead of d.y)
                 const validDirs = [{x:1,z:0},{x:-1,z:0},{x:0,z:1},{x:0,z:-1}].filter(d => {
-                    const nx = alastorPos.x + d.x, nz = alastorPos.z + d.y;
+                    const nx = alastorPos.x + d.x, nz = alastorPos.z + d.z;
                     return nx >= 1 && nx < GRID - 1 && nz >= 1 && nz < GRID - 1 && !isBlocked(nx, nz);
                 });
 
@@ -457,14 +468,14 @@
 
             // Shoot Spore Projectile
             shootCooldown++;
-            if (shootCooldown >= 50) {
+            if (shootCooldown >= 45) {
                 const dx = bastPos.x - alastorPos.x;
                 const dz = bastPos.z - alastorPos.z;
                 if ((dx === 0 || dz === 0) && (Math.abs(dx) < 6 && Math.abs(dz) < 6)) {
                     shootCooldown = 0;
                     const pDir = { x: Math.sign(dx), z: Math.sign(dz) };
                     
-                    const geo = new THREE.SphereGeometry(0.22, 8, 8);
+                    const geo = new THREE.SphereGeometry(0.24, 8, 8);
                     const mat = new THREE.MeshStandardMaterial({ color: 0xff3333, emissive: 0x660000 });
                     const mesh = new THREE.Mesh(geo, mat);
                     updateMeshPos(mesh, { x: alastorPos.x, z: alastorPos.z }, 0.45);
@@ -479,8 +490,8 @@
         function updateProjectiles() {
             for (let i = projectiles.length - 1; i >= 0; i--) {
                 const p = projectiles[i];
-                p.pX += p.dir.x * 0.2;
-                p.pZ += p.dir.z * 0.2;
+                p.pX += p.dir.x * 0.22;
+                p.pZ += p.dir.z * 0.22;
                 p.mesh.position.set(p.pX - GRID/2 + 0.5, 0.45, p.pZ - GRID/2 + 0.5);
 
                 const currGridX = Math.round(p.pX);
@@ -500,8 +511,7 @@
             }
         }
 
-        // --- ABSOLUTE SCREEN WASD MOVEMENT ---
-        // W: Move Up (-Z), S: Move Down (+Z), A: Move Left (-X), D: Move Right (+X)
+        // --- ABSOLUTE WASD SCREEN MOVEMENT ---
         function moveBastDirect(dx, dz) {
             if (!isPlaying) return;
             bastFacing = { x: dx, z: dz };
@@ -590,13 +600,12 @@
 
         function onWindowResize() {
             const aspect = window.innerWidth / window.innerHeight;
-            const d = 5.2;
+            const d = 4.2;
             camera.left = -d * aspect; camera.right = d * aspect; camera.top = d; camera.bottom = -d;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
-        // Direct Absolute Movement Listener
         window.addEventListener('keydown', (e) => {
             const k = e.key.toLowerCase();
             if (k === 'w' || k === 'arrowup') moveBastDirect(0, -1);
