@@ -6,9 +6,26 @@
     <title>Bast's Voxel Escape</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
-        body, html { width: 100%; height: 100%; overflow: hidden; background: #6093e7; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        html, body {
+            width: 100%; height: 100%; height: 100dvh; min-height: 320px;
+            overflow: hidden; background: #6093e7;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            position: relative;
+        }
         
-        #viewport { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
+        #viewport {
+            width: 100%; height: 100%; min-width: 100%; min-height: 100%;
+            position: absolute; top: 0; left: 0; overflow: hidden;
+        }
+        #viewport canvas { display: block; width: 100% !important; height: 100% !important; }
+
+        #js-error-overlay {
+            display: none; position: absolute; inset: 0; z-index: 9999;
+            background: rgba(8, 0, 0, 0.92); color: #ff5555;
+            font-family: Consolas, 'Courier New', monospace; font-size: 12px;
+            padding: 16px; overflow: auto; white-space: pre-wrap; word-break: break-word;
+            pointer-events: none;
+        }
         
         #hud {
             position: absolute; top: 12px; left: 16px; right: 16px;
@@ -66,10 +83,26 @@
         .action-btn { width: 68px; height: 68px; border-radius: 34px; background: rgba(255, 215, 0, 0.35); border: 2px solid #ffd700; font-size: 12px; }
         .bomb-btn { background: rgba(255, 50, 50, 0.45); border-color: #ff3333; color: #ff9999; }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Three.js CDN chain: cdnjs -> jsDelivr -> unpkg (iframe/CSP resilience) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"
+            onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js';"></script>
+    <script>
+        (function ensureThreeFallback() {
+            if (typeof THREE !== 'undefined') return;
+            var s = document.createElement('script');
+            s.src = 'https://unpkg.com/three@0.128.0/build/three.min.js';
+            s.onerror = function () {
+                if (window.__showGameError) {
+                    window.__showGameError('Three.js failed to load from all CDNs (cdnjs, jsDelivr, unpkg).');
+                }
+            };
+            document.head.appendChild(s);
+        })();
+    </script>
 </head>
 <body>
     <div id="viewport"></div>
+    <div id="js-error-overlay"></div>
 
     <div id="hud">
         <div class="stat-card">
@@ -119,8 +152,59 @@
     </div>
 
     <script>
-        const AudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        // --- Diagnostics: surface hidden JS / WebGL errors on-screen ---
+        function __showGameError(msg) {
+            var el = document.getElementById('js-error-overlay');
+            if (!el) {
+                el = document.createElement('div');
+                el.id = 'js-error-overlay';
+                document.body.appendChild(el);
+            }
+            el.style.display = 'block';
+            el.textContent = (el.textContent ? el.textContent + '\n\n' : '') + String(msg);
+        }
+        window.__showGameError = __showGameError;
+        window.onerror = function (message, source, lineno, colno, error) {
+            __showGameError(
+                'JS ERROR\n' + message + '\n' +
+                'at ' + (source || '?') + ':' + lineno + ':' + colno +
+                (error && error.stack ? '\n\n' + error.stack : '')
+            );
+            return false;
+        };
+        window.addEventListener('unhandledrejection', function (ev) {
+            __showGameError('UNHANDLED PROMISE\n' + (ev.reason && ev.reason.stack ? ev.reason.stack : ev.reason));
+        });
+
+        // Measure #viewport (not window) to avoid 0px canvas in Squarespace iframes
+        function getViewportSize() {
+            var container = document.getElementById('viewport');
+            var w = 0, h = 0;
+            if (container) {
+                w = container.clientWidth || container.offsetWidth || 0;
+                h = container.clientHeight || container.offsetHeight || 0;
+            }
+            if (w < 2) w = window.innerWidth || document.documentElement.clientWidth || 640;
+            if (h < 2) h = window.innerHeight || document.documentElement.clientHeight || 480;
+            if (w < 64) w = 640;
+            if (h < 64) h = 480;
+            return { w: w, h: h };
+        }
+
+        // Deferred AudioContext — created in startGame() after user gesture
+        let AudioCtx = null;
+        function ensureAudioCtx() {
+            if (AudioCtx) return AudioCtx;
+            try {
+                AudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            } catch (e) {
+                __showGameError('AudioContext failed: ' + e);
+                return null;
+            }
+            return AudioCtx;
+        }
         function playSound(type) {
+            if (!AudioCtx) return;
             if (AudioCtx.state === 'suspended') AudioCtx.resume();
             const osc = AudioCtx.createOscillator();
             const gain = AudioCtx.createGain();
@@ -184,11 +268,21 @@
         let shootCooldown = 0, aiMoveCooldown = 0;
 
         function init3D() {
+            if (typeof THREE === 'undefined') {
+                throw new Error('THREE is undefined — CDN script did not load before init3D().');
+            }
             const container = document.getElementById('viewport');
+            if (!container) {
+                throw new Error('#viewport element missing from DOM.');
+            }
+            container.style.width = '100%';
+            container.style.height = '100%';
+
+            const size = getViewportSize();
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x6093e7); // Minecraft Sky Blue
 
-            const aspect = window.innerWidth / window.innerHeight;
+            const aspect = size.w / size.h;
             const d = 4.2; // Zoomed in close to character scale
             camera = new THREE.OrthographicCamera(-d * aspect, d * aspect, d, -d, 1, 1000);
             
@@ -205,9 +299,19 @@
             dirLight.shadow.mapSize.height = 1024;
             scene.add(dirLight);
 
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
+            try {
+                renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+            } catch (webglErr) {
+                throw new Error('WebGLRenderer failed (GPU/WebGL blocked in iframe?): ' + webglErr.message);
+            }
+            if (!renderer.getContext()) {
+                throw new Error('WebGL context is null after renderer creation.');
+            }
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+            renderer.setSize(size.w, size.h, false);
             renderer.shadowMap.enabled = true;
+            renderer.domElement.style.width = '100%';
+            renderer.domElement.style.height = '100%';
             container.appendChild(renderer.domElement);
 
             buildMinecraftEnvironment();
@@ -557,6 +661,10 @@
         }
 
         function startGame() {
+            // Create AudioContext only after user gesture (avoids autoplay policy crashes on boot)
+            ensureAudioCtx();
+            if (AudioCtx && AudioCtx.state === 'suspended') AudioCtx.resume();
+
             document.getElementById('start-screen').style.display = 'none';
             document.getElementById('game-over-screen').style.display = 'none';
             lives = 9; bombCharge = 0; isPlaying = true;
@@ -586,6 +694,7 @@
 
         function renderLoop() {
             requestAnimationFrame(renderLoop);
+            if (!renderer || !scene || !camera) return;
             if (isPlaying) {
                 updateAlastor();
                 updateProjectiles();
@@ -599,11 +708,13 @@
         }
 
         function onWindowResize() {
-            const aspect = window.innerWidth / window.innerHeight;
+            if (!camera || !renderer) return;
+            const size = getViewportSize();
+            const aspect = size.w / size.h;
             const d = 4.2;
             camera.left = -d * aspect; camera.right = d * aspect; camera.top = d; camera.bottom = -d;
             camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setSize(size.w, size.h, false);
         }
 
         window.addEventListener('keydown', (e) => {
@@ -623,8 +734,34 @@
         document.getElementById('btn-build').onclick = () => placeBlock();
         document.getElementById('btn-bomb').onclick = () => placeShadowBomb();
 
-        init3D();
-        renderLoop();
+        function bootGame() {
+            try {
+                if (typeof THREE === 'undefined') {
+                    var attempts = 0;
+                    var wait = setInterval(function () {
+                        attempts++;
+                        if (typeof THREE !== 'undefined') {
+                            clearInterval(wait);
+                            init3D();
+                            renderLoop();
+                        } else if (attempts >= 40) {
+                            clearInterval(wait);
+                            __showGameError('Three.js never became available after 4s. Check CDN / CSP / iframe network.');
+                        }
+                    }, 100);
+                    return;
+                }
+                init3D();
+                renderLoop();
+            } catch (err) {
+                __showGameError('INIT FAILURE\n' + (err && err.stack ? err.stack : err));
+            }
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', bootGame);
+        } else {
+            bootGame();
+        }
     </script>
 </body>
 </html>
