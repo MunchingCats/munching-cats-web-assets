@@ -282,7 +282,7 @@
         uniforms:{map:{value:map},tint:{value:new THREE.Color(color)},fade:{value:1}},
         vertexShader:"varying vec2 vUv;varying vec3 vN;void main(){vUv=uv;vN=normalize(mat3(modelMatrix)*normal);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}",
         fragmentShader:"uniform sampler2D map;uniform vec3 tint;uniform float fade;varying vec2 vUv;varying vec3 vN;void main(){vec3 L=normalize(vec3(-.45,.9,.55));float light=.34+.66*max(0.0,dot(normalize(vN),L));vec3 tex=texture2D(map,vUv).rgb;float mortar=smoothstep(.08,.32,length(dFdx(tex)+dFdy(tex)));vec3 shaded=tex*tint*light-mortar*.08;gl_FragColor=vec4(shaded,mix(.25,1.0,fade));}",
-        transparent:true,depthWrite:false,extensions:{derivatives:true}
+        transparent:true,depthWrite:true,extensions:{derivatives:true}
       });
     }
     return {init:init,toon:toon,rimPass:rimPass,glowPass:glowPass,wall:wall};
@@ -389,7 +389,11 @@
         var px=wall.position.x,pz=wall.position.z,t=((px-ax)*dx+(pz-az)*dz)/len2;
         var cx=ax+dx*t,cz=az+dz*t,distance=Math.hypot(px-cx,pz-cz),target=t>0&&t<1&&distance<.62?0:1;
         wall.userData.fade+= (target-wall.userData.fade)*(1-Math.exp(-dt*12));
-        wall.userData.materials.forEach(function(material){material.uniforms.fade.value=wall.userData.fade;});
+        wall.userData.materials.forEach(function(material){
+          material.uniforms.fade.value=wall.userData.fade;
+          var writeDepth=target===1&&wall.userData.fade>.985;
+          if(material.depthWrite!==writeDepth){material.depthWrite=writeDepth;material.needsUpdate=true;}
+        });
       });
     }
     api.build=build;api.key=key;api.world=world;api.isBlocked=isBlocked;api.destroyWall=destroyWall;api.restore=restore;api.update=update;api.updateOcclusion=updateOcclusion;return api;
@@ -428,7 +432,7 @@
       [-.115,.115].forEach(function(x){var p=new THREE.Group();p.position.set(x,.16,0);root.add(p);var leg=add(p,mesh(new THREE.CylinderGeometry(.058,.067,.21,10),black),0,-.03,0);var paw=add(p,mesh(new THREE.SphereGeometry(.075,10,7),black),0,-.14,.035);paw.scale.set(1.15,.55,1.4);legPivots.push(p);});
       tailPivot.position.set(-.19,.28,-.04);var tail=add(tailPivot,mesh(new THREE.TorusGeometry(.235,.038,8,24,Math.PI*1.42),black),-.08,0,0);tail.rotation.set(Math.PI/2,.15,.25);
       var contact=add(root,mesh(new THREE.CircleGeometry(.31,20),new THREE.MeshBasicMaterial({color:0x07101a,transparent:true,opacity:.28,depthWrite:false}),false),0,.004,0);contact.rotation.x=-Math.PI/2;
-      var pathLight=new THREE.PointLight(0xffea9f,1.5,4.5,2);pathLight.position.set(0,.62,.05);pathLight.castShadow=true;pathLight.shadow.mapSize.set(512,512);pathLight.shadow.bias=-.002;root.add(pathLight);
+      var pathLight=new THREE.PointLight(0xffea9f,1.5,4.5,2);pathLight.position.set(0,.62,.05);pathLight.castShadow=false;root.add(pathLight);
       root.scale.setScalar(1.8);root.userData={torso:torsoPivot,head:headPivot,legs:legPivots,tail:tailPivot,pathLight:pathLight,baseScale:1.8};return actor(root,1,1);
     }
     function createAlastor(){
@@ -591,7 +595,7 @@
 
   GAME.Core=(function(){
     var api={state:null},FSM={BOOT:"BOOT",MENU:"MENU",PLAYING:"PLAYING",GAMEOVER:"GAMEOVER"},clock,rafStarted=false;
-    var bast,alastor,vision,shieldGhost,shake=0;
+    var bast,alastor,vision,shieldGhost,shake=0,occlusionFrame=0;
     function makeState(){return {fsm:FSM.BOOT,lives:9,charge:0,score:0,time:0,shields:[],shots:[],bomb:null,inputBuffer:null,invulnerable:0,aiClock:0,fireClock:.8};}
     api.state=makeState();
     function worldPosition(grid,y){return new THREE.Vector3(grid.x-GAME.Config.HALF,y===undefined?GAME.Config.GROUND_Y:y,grid.z-GAME.Config.HALF);}
@@ -612,11 +616,13 @@
     function bindControls(){
       document.getElementById("start-button").onclick=startGame;document.getElementById("restart-button").onclick=startGame;
       document.getElementById("touch-shield").onclick=placeShield;document.getElementById("touch-bomb").onclick=placeBomb;
-      Array.prototype.forEach.call(document.querySelectorAll("[data-move]"),function(button){button.onclick=function(){var v=button.dataset.move.split(",");moveBast(+v[0],+v[1]);};});
+      Array.prototype.forEach.call(document.querySelectorAll("[data-move]"),function(button){button.onclick=function(){var v=button.dataset.move.split(",");moveScreen(+v[0],-v[1]);};});
       window.addEventListener("keydown",function(event){
-        var k=event.key.toLowerCase(),handled=["w","a","s","d","arrowup","arrowdown","arrowleft","arrowright"," ","b"].indexOf(k)>=0;if(handled)event.preventDefault();if(event.repeat)return;
-        if(k==="w"||k==="arrowup")moveBast(0,-1);else if(k==="s"||k==="arrowdown")moveBast(0,1);else if(k==="a"||k==="arrowleft")moveBast(-1,0);else if(k==="d"||k==="arrowright")moveBast(1,0);else if(k===" ")placeShield();else if(k==="b")placeBomb();
-      },{passive:false});
+        var k=event.key.toLowerCase(),handled=["w","a","s","d","arrowup","arrowdown","arrowleft","arrowright"," ","b"].indexOf(k)>=0;
+        if(handled){event.preventDefault();event.stopPropagation();}
+        if(event.repeat)return;
+        if(k==="w"||k==="arrowup")moveScreen(0,1);else if(k==="s"||k==="arrowdown")moveScreen(0,-1);else if(k==="a"||k==="arrowleft")moveScreen(-1,0);else if(k==="d"||k==="arrowright")moveScreen(1,0);else if(k===" ")placeShield();else if(k==="b")placeBomb();
+      },{passive:false,capture:true});
     }
     function clearDynamic(){
       api.state.shields.forEach(function(s){GAME.Renderer.scene.remove(s.mesh);});api.state.shots.forEach(function(s){GAME.Renderer.scene.remove(s.mesh);});if(api.state.bomb)GAME.Renderer.scene.remove(api.state.bomb.mesh);
@@ -627,10 +633,26 @@
       setActor(bast,1,1,{x:0,z:1});setActor(alastor,9,9,{x:0,z:-1});bast.root.visible=true;shieldGhost.visible=true;
       document.getElementById("menu-overlay").classList.add("hidden");document.getElementById("result-overlay").classList.add("hidden");updateHUD();GAME.Audio.sound("shield");
     }
-    function attemptMove(dx,dz){
+    function canMove(dx,dz){
       var x=bast.grid.x+dx,z=bast.grid.z+dz;
       if(GAME.World.isBlocked(x,z)||alastor.grid.x===x&&alastor.grid.z===z)return false;
+      if(dx!==0&&dz!==0&&GAME.World.isBlocked(bast.grid.x+dx,bast.grid.z)&&GAME.World.isBlocked(bast.grid.x,bast.grid.z+dz))return false;
+      return true;
+    }
+    function attemptMove(dx,dz){
+      if(!canMove(dx,dz))return false;
+      var x=bast.grid.x+dx,z=bast.grid.z+dz;
       bast.facing={x:dx,z:dz};bast.root.rotation.y=Math.atan2(dx,dz);bast.grid={x:x,z:z};bast.target.copy(worldPosition(bast.grid));bast.moving=true;bast.phase=0;GAME.Audio.sound("move");return true;
+    }
+    function moveScreen(screenX,screenY){
+      var e=GAME.Renderer.camera.matrixWorld.elements;
+      var worldX=e[0]*screenX+e[4]*screenY,worldZ=e[2]*screenX+e[6]*screenY;
+      var dx=Math.abs(worldX)>.2?Math.sign(worldX):0,dz=Math.abs(worldZ)>.2?Math.sign(worldZ):0;
+      if(dx!==0&&dz!==0&&!canMove(dx,dz)){
+        var axes=[{dx:dx,dz:0,weight:Math.abs(worldX)},{dx:0,dz:dz,weight:Math.abs(worldZ)}].sort(function(a,b){return b.weight-a.weight;});
+        for(var i=0;i<axes.length;i++)if(canMove(axes[i].dx,axes[i].dz)){dx=axes[i].dx;dz=axes[i].dz;break;}
+      }
+      moveBast(dx,dz);
     }
     function moveBast(dx,dz){
       if(api.state.fsm!==FSM.PLAYING)return;
@@ -651,11 +673,13 @@
         var recalled=api.state.shields[existing];GAME.FX.implode(recalled.mesh.position,0x43d9ff,22,2.8);GAME.FX.text("RECALLED!",recalled.mesh.position,"#82efff");GAME.Renderer.scene.remove(recalled.mesh);api.state.shields.splice(existing,1);GAME.Audio.sound("recall");updateHUD();return;
       }
       if(GAME.World.isBlocked(x,z)||alastor.grid.x===x&&alastor.grid.z===z){GAME.Audio.sound("bump");return;}
-      if(api.state.shields.length>=3){
+      if(api.state.shields.length<3){
+        var shield=GAME.Entities.createShield(x,z);api.state.shields.push(shield);GAME.Renderer.scene.add(shield.mesh);GAME.FX.burst(shield.mesh.position,0x5ed5ff,17,1.8);GAME.FX.text("SHIELD!",shield.mesh.position,"#82e9ff");GAME.Audio.sound("shield");updateHUD();return;
+      }
+      if(api.state.shields.length===3){
         var old=api.state.shields.shift(),oldPosition=old.mesh.position.clone();GAME.FX.implode(oldPosition,0x43d9ff,18,2.6);
         old.x=x;old.z=z;old.mesh.position.set(x-GAME.Config.HALF,.47,z-GAME.Config.HALF);api.state.shields.push(old);GAME.FX.burst(old.mesh.position,0x5ed5ff,17,1.8);GAME.FX.text("REDEPLOY!",old.mesh.position,"#82e9ff");GAME.Audio.sound("recall");updateHUD();return;
       }
-      var shield=GAME.Entities.createShield(x,z);api.state.shields.push(shield);GAME.Renderer.scene.add(shield.mesh);GAME.FX.burst(shield.mesh.position,0x5ed5ff,17,1.8);GAME.FX.text("SHIELD!",shield.mesh.position,"#82e9ff");GAME.Audio.sound("shield");updateHUD();
     }
     function updateShieldGhost(dt){
       if(api.state.fsm!==FSM.PLAYING){shieldGhost.visible=false;return;}
@@ -771,7 +795,9 @@
         alastor.root.userData.cap.rotation.z=Math.sin(performance.now()*.0027)*.025;
       }
       updateVision();updateShieldGhost(dt);GAME.World.update(dt,api.state.time||performance.now()*.001);GAME.FX.update(dt);shake=Math.max(0,shake-dt*1.5);
-      var focus=api.state.fsm===FSM.PLAYING?bast.root.position:new THREE.Vector3(0,0,0);GAME.Renderer.updateCamera(dt,focus,shake);GAME.World.updateOcclusion(GAME.Renderer.camera,bast.root.position,dt);GAME.Renderer.render();
+      var focus=api.state.fsm===FSM.PLAYING?bast.root.position:new THREE.Vector3(0,0,0);GAME.Renderer.updateCamera(dt,focus,shake);
+      occlusionFrame=(occlusionFrame+1)%3;if(occlusionFrame===0)GAME.World.updateOcclusion(GAME.Renderer.camera,bast.root.position,dt*3);
+      GAME.Renderer.render();
     }
     api.boot=boot;api.startGame=startGame;return api;
   })();
